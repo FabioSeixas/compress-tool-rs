@@ -1,40 +1,38 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 trait BaseNode {
     fn is_leaf(&self) -> bool;
-    fn weight(&self) -> u8;
+    fn weight(&self) -> u32;
 }
 
 #[derive(Debug)]
 struct LeafNode {
     element: char,
-    weight: u8,
+    weight: u32,
+}
+
+enum NodeType {
+    Leaf(LeafNode),
+    Internal(Rc<InternalNode>),
 }
 
 struct InternalNode {
-    left: Rc<dyn BaseNode>,
-    right: Rc<dyn BaseNode>,
-    weight: u8,
+    left: Rc<NodeType>,
+    right: Rc<NodeType>,
+    weight: u32,
 }
 
 impl LeafNode {
-    fn new(elem: char, weight: u8) -> Self {
+    fn new(elem: char, weight: u32) -> Self {
         Self {
             element: elem,
             weight,
         }
     }
-    fn value(&self) -> char {
-        self.element
-    }
 }
 
 impl InternalNode {
-    fn new(
-        right: Rc<impl BaseNode + 'static>,
-        left: Rc<impl BaseNode + 'static>,
-        weight: u8,
-    ) -> Self {
+    fn new(right: Rc<NodeType>, left: Rc<NodeType>, weight: u32) -> Self {
         Self {
             weight,
             right,
@@ -42,11 +40,11 @@ impl InternalNode {
         }
     }
 
-    fn right(&self) -> Rc<dyn BaseNode> {
+    fn right(&self) -> Rc<NodeType> {
         self.right.clone()
     }
 
-    fn left(&self) -> Rc<dyn BaseNode> {
+    fn left(&self) -> Rc<NodeType> {
         self.left.clone()
     }
 }
@@ -55,7 +53,7 @@ impl BaseNode for InternalNode {
     fn is_leaf(&self) -> bool {
         false
     }
-    fn weight(&self) -> u8 {
+    fn weight(&self) -> u32 {
         self.weight
     }
 }
@@ -64,48 +62,13 @@ impl BaseNode for LeafNode {
     fn is_leaf(&self) -> bool {
         true
     }
-    fn weight(&self) -> u8 {
+    fn weight(&self) -> u32 {
         self.weight
     }
 }
 
-struct Tree {
-    data: Vec<Rc<InternalNode>>,
-}
-
-impl Tree {
-    fn new() -> Self {
-        Self { data: vec![] }
-    }
-
-    fn add(&mut self, node: InternalNode) {
-        self.data.push(Rc::new(node));
-    }
-
-    fn get_last(&self) -> Rc<InternalNode> {
-        self.data.last().unwrap().clone()
-    }
-
-    fn print(&self) {
-        println!("\n");
-        for (i, item) in self.data.iter().enumerate() {
-            println!("node {}, weight: {}", i, item.weight());
-            // println!(
-            //     "right: leaf? {}, weight? {}",
-            //     item.right.is_leaf(),
-            //     item.right.weight()
-            // );
-            // println!(
-            //     "left: leaf? {}, weight? {}",
-            //     item.left.is_leaf(),
-            //     item.left.weight()
-            // );
-        }
-    }
-}
-
 enum SortedListType {
-    Raw((char, u8)),
+    Raw((char, u32)),
     Node(Rc<InternalNode>),
 }
 
@@ -115,7 +78,7 @@ fn sort_list(list: &mut Vec<SortedListType>) {
             SortedListType::Raw((_, v2)) => {
                 return v1.cmp(v2);
             }
-            SortedListType::Node(node) => return node.weight().cmp(v1),
+            SortedListType::Node(node) => return v1.cmp(&node.weight()),
         },
         SortedListType::Node(node) => match b {
             SortedListType::Raw((_, v2)) => {
@@ -143,65 +106,112 @@ fn print_list(list: &Vec<SortedListType>) {
         .last();
 }
 
-pub fn buildTree(map: HashMap<char, u8>) {
-    let mut sorted_list: Vec<SortedListType> = map
+fn go_through_nodes<'r>(node: NodeType, code: String, map: &mut HashMap<char, String>) {
+    println!("[go_through_nodes]: start");
+    match node {
+        NodeType::Internal(node) => {
+            match &*node.left() {
+                NodeType::Internal(node) => {
+                    let mut new_code = String::from(code.clone());
+                    new_code.push_str("0");
+                    go_through_nodes(NodeType::Internal(node.clone()), new_code, map);
+                }
+                NodeType::Leaf(node) => {
+                    let mut new_code = String::from(code.clone());
+                    new_code.push_str("0");
+                    println!("new code: {}", new_code);
+                    map.insert(node.element, new_code);
+                }
+            };
+            match &*node.right() {
+                NodeType::Internal(node) => {
+                    let mut new_code = String::from(code);
+                    new_code.push_str("1");
+                    return go_through_nodes(NodeType::Internal(node.clone()), new_code, map);
+                }
+                NodeType::Leaf(node) => {
+                    let mut new_code = String::from(code);
+                    new_code.push_str("1");
+                    println!("new code: {}", new_code);
+                    map.insert(node.element, new_code);
+                }
+            }
+        }
+        NodeType::Leaf(node) => {
+            let mut new_code = String::from(code);
+            new_code.push_str("1");
+            println!("new code: {}", new_code);
+            map.insert(node.element, new_code);
+        }
+    }
+}
+
+pub fn build_tree(freq_map: HashMap<char, u32>) {
+    let mut sorted_list: Vec<SortedListType> = freq_map
         .iter()
         .map(|(k, v)| SortedListType::Raw((k.clone(), v.clone())))
         .collect();
 
     sort_list(&mut sorted_list);
 
-    let mut tree = RefCell::new(Tree::new());
     while sorted_list.len() > 1 {
         println!("new iteration");
         print_list(&sorted_list);
-        tree.borrow().print();
-        // println!("{:?}", sorted_list);
-        match sorted_list.remove(0) {
+
+        let new_node = match sorted_list.remove(0) {
             SortedListType::Raw((left_char, left_weight)) => match sorted_list.remove(0) {
                 SortedListType::Raw((right_char, right_weight)) => {
                     let left_node = LeafNode::new(left_char, left_weight);
                     let right_node = LeafNode::new(right_char, right_weight);
                     let sum_weight = left_node.weight() + right_node.weight();
-                    tree.get_mut().add(InternalNode::new(
-                        Rc::new(right_node),
-                        Rc::new(left_node),
+                    InternalNode::new(
+                        Rc::new(NodeType::Leaf(right_node)),
+                        Rc::new(NodeType::Leaf(left_node)),
                         sum_weight,
-                    ));
+                    )
                 }
                 SortedListType::Node(right_node) => {
                     let left_node = LeafNode::new(left_char, left_weight);
                     let sum_weight = left_node.weight() + right_node.weight();
-                    tree.get_mut().add(InternalNode::new(
-                        right_node,
-                        Rc::new(left_node),
+                    InternalNode::new(
+                        Rc::new(NodeType::Internal(right_node)),
+                        Rc::new(NodeType::Leaf(left_node)),
                         sum_weight,
-                    ));
+                    )
                 }
             },
             SortedListType::Node(left_node) => match sorted_list.remove(0) {
                 SortedListType::Raw((right_char, right_weight)) => {
                     let right_node = LeafNode::new(right_char, right_weight);
                     let sum_weight = left_node.weight() + right_node.weight();
-                    tree.get_mut().add(InternalNode::new(
-                        Rc::new(right_node),
-                        left_node,
+                    InternalNode::new(
+                        Rc::new(NodeType::Leaf(right_node)),
+                        Rc::new(NodeType::Internal(left_node)),
                         sum_weight,
-                    ));
+                    )
                 }
                 SortedListType::Node(right_node) => {
                     let sum_weight = left_node.weight() + right_node.weight();
-                    tree.get_mut()
-                        .add(InternalNode::new(right_node, left_node, sum_weight));
+                    InternalNode::new(
+                        Rc::new(NodeType::Internal(right_node)),
+                        Rc::new(NodeType::Internal(left_node)),
+                        sum_weight,
+                    )
                 }
             },
-        }
+        };
+        sorted_list.push(SortedListType::Node(Rc::new(new_node)));
 
-        println!("result (last) node: {:?}", tree.borrow().get_last().weight);
-
-        sorted_list.push(SortedListType::Node(tree.borrow().get_last()));
         sort_list(&mut sorted_list);
+        println!("end iteration");
+    }
+    print_list(&sorted_list);
+    let mut code_table: HashMap<char, String> = HashMap::new();
+    if let SortedListType::Node(start_node) = sorted_list.remove(0) {
+        go_through_nodes(NodeType::Internal(start_node), String::from(""), &mut code_table);
+    } else {
+        panic!("something went wrong, 'start_node' is not what is expected")
     }
 
-    tree.borrow().print();
+    println!("{:?}", code_table);
 }

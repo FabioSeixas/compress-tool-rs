@@ -7,7 +7,7 @@ static mut CHARS_COUNT: OnceCell<CharsMap> = OnceCell::new();
 
 #[derive(Debug)]
 struct CharsMap {
-    map: RefCell<HashMap<char, u8>>,
+    map: RefCell<HashMap<char, u32>>,
 }
 
 impl CharsMap {
@@ -23,7 +23,7 @@ impl CharsMap {
                 .expect("Error while creating chars map");
         }
     }
-    pub fn get_list() -> HashMap<char, u8> {
+    pub fn get_list() -> HashMap<char, u32> {
         let map = unsafe { CHARS_COUNT.get().expect("error while...").map.borrow() };
         map.clone()
     }
@@ -61,17 +61,12 @@ fn read_file(fp: String) {
         .expect("error while trying to read the file");
     let content = String::from_utf8(buf).expect("error while decode from utf8");
     CharsMap::start();
-    // let map = CHARS_COUNT
-    //     .get()
-    //     .expect("error while getting global instance of chars map");
     for char in content.chars() {
-        // println!("{}: {}", char, char.len_utf8());
-        // if char.len_utf8() > 0 {
+        if char == '\n' {
+            continue;
+        }
         CharsMap::add(char);
-        // }
     }
 
-
-    // println!("{:?}", CharsMap::get_list());
-    tree::buildTree(CharsMap::get_list())
+    tree::build_tree(CharsMap::get_list())
 }
