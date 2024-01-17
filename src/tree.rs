@@ -1,5 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
+pub type CodeTable = HashMap<char, String>;
+
 trait BaseNode {
     fn is_leaf(&self) -> bool;
     fn weight(&self) -> u32;
@@ -107,7 +109,6 @@ fn print_list(list: &Vec<SortedListType>) {
 }
 
 fn go_through_nodes<'r>(node: NodeType, code: String, map: &mut HashMap<char, String>) {
-    println!("[go_through_nodes]: start");
     match node {
         NodeType::Internal(node) => {
             match &*node.left() {
@@ -119,7 +120,6 @@ fn go_through_nodes<'r>(node: NodeType, code: String, map: &mut HashMap<char, St
                 NodeType::Leaf(node) => {
                     let mut new_code = String::from(code.clone());
                     new_code.push_str("0");
-                    println!("new code: {}", new_code);
                     map.insert(node.element, new_code);
                 }
             };
@@ -132,7 +132,6 @@ fn go_through_nodes<'r>(node: NodeType, code: String, map: &mut HashMap<char, St
                 NodeType::Leaf(node) => {
                     let mut new_code = String::from(code);
                     new_code.push_str("1");
-                    println!("new code: {}", new_code);
                     map.insert(node.element, new_code);
                 }
             }
@@ -140,13 +139,12 @@ fn go_through_nodes<'r>(node: NodeType, code: String, map: &mut HashMap<char, St
         NodeType::Leaf(node) => {
             let mut new_code = String::from(code);
             new_code.push_str("1");
-            println!("new code: {}", new_code);
             map.insert(node.element, new_code);
         }
     }
 }
 
-pub fn build_tree(freq_map: HashMap<char, u32>) {
+pub fn build_tree(freq_map: HashMap<char, u32>) -> CodeTable {
     let mut sorted_list: Vec<SortedListType> = freq_map
         .iter()
         .map(|(k, v)| SortedListType::Raw((k.clone(), v.clone())))
@@ -155,8 +153,7 @@ pub fn build_tree(freq_map: HashMap<char, u32>) {
     sort_list(&mut sorted_list);
 
     while sorted_list.len() > 1 {
-        println!("new iteration");
-        print_list(&sorted_list);
+        // print_list(&sorted_list);
 
         let new_node = match sorted_list.remove(0) {
             SortedListType::Raw((left_char, left_weight)) => match sorted_list.remove(0) {
@@ -203,15 +200,18 @@ pub fn build_tree(freq_map: HashMap<char, u32>) {
         sorted_list.push(SortedListType::Node(Rc::new(new_node)));
 
         sort_list(&mut sorted_list);
-        println!("end iteration");
     }
-    print_list(&sorted_list);
+    // print_list(&sorted_list);
     let mut code_table: HashMap<char, String> = HashMap::new();
     if let SortedListType::Node(start_node) = sorted_list.remove(0) {
-        go_through_nodes(NodeType::Internal(start_node), String::from(""), &mut code_table);
+        go_through_nodes(
+            NodeType::Internal(start_node),
+            String::from(""),
+            &mut code_table,
+        );
     } else {
         panic!("something went wrong, 'start_node' is not what is expected")
     }
 
-    println!("{:?}", code_table);
+    code_table
 }

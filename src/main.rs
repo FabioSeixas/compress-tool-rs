@@ -2,6 +2,7 @@ use once_cell::sync::OnceCell;
 use std::{cell::RefCell, collections::HashMap, fs::File, io::Read};
 
 mod tree;
+mod write_file;
 
 static mut CHARS_COUNT: OnceCell<CharsMap> = OnceCell::new();
 
@@ -54,19 +55,20 @@ fn main() {
     };
 }
 
-fn read_file(fp: String) {
-    let mut abc = File::open(fp).expect("error while trying to open the file");
+fn read_file(file_path: String) {
+    let mut abc = File::open(file_path.clone()).expect("error while trying to open the file");
     let mut buf = vec![];
     abc.read_to_end(&mut buf)
         .expect("error while trying to read the file");
     let content = String::from_utf8(buf).expect("error while decode from utf8");
     CharsMap::start();
     for char in content.chars() {
-        if char == '\n' {
-            continue;
-        }
+        // if char == '\n' {
+        //     continue;
+        // }
         CharsMap::add(char);
     }
 
-    tree::build_tree(CharsMap::get_list())
+    let code_table = tree::build_tree(CharsMap::get_list());
+    write_file::write_compressed_file(file_path, code_table);
 }
