@@ -16,7 +16,7 @@ pub fn write_compressed_file(file_path: String, table: tree::CodeTable) -> std::
 fn write_header(file: &mut File, table: &tree::CodeTable) -> std::io::Result<()> {
     let mut buf = String::from("");
 
-    buf.push_str("=====================\n");
+    // buf.push_str("=====================\n");
 
     for (char, encoded) in table.iter() {
         buf.push_str(&format!("{}: ", char));

@@ -1,6 +1,7 @@
 use once_cell::sync::OnceCell;
-use std::{cell::RefCell, collections::HashMap, fs::File, io::Read};
+use std::{cell::RefCell, collections::HashMap, fmt::format, fs::File, io::Read};
 
+mod decompress;
 mod tree;
 mod write_file;
 
@@ -44,10 +45,25 @@ impl CharsMap {
 }
 
 fn main() {
+    let file_path = std::env::args()
+        .nth(2)
+        .expect("Error while reading file path from args");
     match std::env::args().nth(1) {
-        Some(file_path) => {
-            println!("{file_path}");
-            read_file(file_path);
+        Some(command) => {
+            println!("option {command} used:");
+            match command
+                .strip_prefix('-')
+                .expect("Error while parsing option flag")
+            {
+                "c" => {
+                    compress_file(file_path);
+                }
+                "d" => decompress::decompress_file(file_path),
+                v => {
+                    let msg = format!("Flag '{v}' not supported");
+                    panic!("{msg}");
+                }
+            }
         }
         None => {
             panic!("no file path");
@@ -55,7 +71,7 @@ fn main() {
     };
 }
 
-fn read_file(file_path: String) {
+fn compress_file(file_path: String) {
     let mut abc = File::open(file_path.clone()).expect("error while trying to open the file");
     let mut buf = vec![];
     abc.read_to_end(&mut buf)
@@ -70,5 +86,6 @@ fn read_file(file_path: String) {
     }
 
     let code_table = tree::build_tree(CharsMap::get_list());
-    write_file::write_compressed_file(file_path, code_table);
+    write_file::write_compressed_file(file_path, code_table)
+        .expect("Error while writing compressed file");
 }
