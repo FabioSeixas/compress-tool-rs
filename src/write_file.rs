@@ -92,7 +92,6 @@ fn write_content(
                 }
 
                 if current_bit_list_index == 8 {
-                    println!("current_bit_list: {:?}", current_bit_list);
                     let mut sum: u8 = 0;
                     let index_range: Vec<u8> = (0..=8).collect();
                     for (bit, index) in current_bit_list.iter().zip(index_range.iter()) {
@@ -101,11 +100,7 @@ fn write_content(
                             .try_into()
                             .expect("Errro while converting u8 to u32");
                         let res = bit * BASE_NUMBER.pow(index_32);
-                        println!("index: {:?}", index);
-                        println!("bit: {:?}", bit);
-                        println!("result: {:?}", res);
                         sum += res;
-                        println!("sum: {:?}", sum);
                     }
                     new_file
                         .write_all(&[sum])
