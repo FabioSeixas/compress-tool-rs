@@ -1,6 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 pub type CodeTable = HashMap<char, String>;
+pub type DecodingTable = HashMap<String, char>;
 
 trait BaseNode {
     fn is_leaf(&self) -> bool;
